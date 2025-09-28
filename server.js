@@ -30,14 +30,6 @@ const app = express();
 // 3. Create an HTTP server from the Express app
 const server = http.createServer(app);
 
-// 4. Attach Socket.IO to the HTTP server
-const io = new Server(server, {
-  cors: {
-    origin: "http://localhost:5173", // Your frontend URL
-    methods: ["GET", "POST"]
-  }
-});
-
 // Enable CORS for Express
 app.use(cors());
 

@@ -30,6 +30,14 @@ const app = express();
 // 3. Create an HTTP server from the Express app
 const server = http.createServer(app);
 
+// 4. Attach Socket.IO to the HTTP server
+const io = new Server(server, {
+  cors: {
+    origin: "https://alumni-verse-frontend.vercel.app", // Your frontend URL
+    methods: ["GET", "POST"]
+  }
+});
+
 // Enable CORS for Express
 app.use(cors());
 

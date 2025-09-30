@@ -33,7 +33,7 @@ const server = http.createServer(app);
 // 4. Attach Socket.IO to the HTTP server
 const io = new Server(server, {
   cors: {
-    origin: "https://alumni-verse-frontend.vercel.app", // Your frontend URL
+    origin: "http://localhost:5173", // Your frontend URL
     methods: ["GET", "POST"]
   }
 });
@@ -63,11 +63,6 @@ app.use('/api/connections', connectionRoutes);
 require('./socketHandler')(io);
 
 const PORT = process.env.PORT || 5000;
-
-app.get('/ping', (req, res) => {
-  res.json("PONG")
-});
-
 
 // 5. Start the HTTP server instead of the Express app
 server.listen(PORT, () => console.log(`Server running on port ${PORT}`));

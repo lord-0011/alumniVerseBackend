@@ -33,7 +33,7 @@ const server = http.createServer(app);
 // 4. Attach Socket.IO to the HTTP server
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173", // Your frontend URL
+    origin:["http://localhost:5173", "https://your-frontend-url.vercel.app"], // Your frontend URL
     methods: ["GET", "POST"]
   }
 });

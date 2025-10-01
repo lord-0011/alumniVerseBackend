@@ -48,7 +48,6 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/mentorship', mentorshipRoutes);
 app.use('/api/users', userRoutes);
-app.use('/api/users', userRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/posts', postRoutes);
 app.use('/api/jobs', jobRoutes); 

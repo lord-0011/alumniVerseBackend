@@ -27,7 +27,7 @@ const registerUser = async (req, res) => {
       password,
       role,
       collegeName,
-      ...otherInfo
+      ...otherInfo,
     });
 
     if (user) {
@@ -36,12 +36,15 @@ const registerUser = async (req, res) => {
         name: user.name,
         email: user.email,
         role: user.role,
-        token: generateToken(user._id), // Token is now returned here
+        collegeName: user.collegeName,
+        profilePicture: user.profilePicture,
+        token: generateToken(user._id),
       });
     } else {
       res.status(400).json({ message: 'Invalid user data' });
     }
   } catch (error) {
+    console.error(error.message);
     res.status(500).json({ message: 'Server Error' });
   }
 };
@@ -51,27 +54,26 @@ const registerUser = async (req, res) => {
  * @route   POST /api/auth/login
  */
 const loginUser = async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, role } = req.body;
 
   try {
     const user = await User.findOne({ email });
 
-    if (!user) {
-      return res.status(401).json({ message: 'Invalid email or password' });
-    }
-
-    if (await user.matchPassword(password)) {
+    if (user && user.role === role && (await user.matchPassword(password))) {
       res.json({
         _id: user._id,
         name: user.name,
         email: user.email,
         role: user.role,
+        collegeName: user.collegeName,
+        profilePicture: user.profilePicture,
         token: generateToken(user._id),
       });
     } else {
-      res.status(401).json({ message: 'Invalid email or password' });
+      res.status(401).json({ message: 'Invalid credentials or role mismatch' });
     }
   } catch (error) {
+    console.error(error.message);
     res.status(500).json({ message: 'Server Error' });
   }
 };

@@ -24,8 +24,14 @@ const UserSchema = new mongoose.Schema({
   collegeName: { 
     type: String 
   },
-  
-  // --- Points System (from the first code snippet) ---
+
+  // --- Profile ---
+  profilePicture: { 
+    type: String, 
+    default: '' // store a URL/path if uploaded
+  },
+
+  // --- Points System ---
   points: { 
     type: Number, 
     default: 0 
@@ -56,18 +62,19 @@ const UserSchema = new mongoose.Schema({
   timestamps: true // Adds createdAt and updatedAt timestamps
 });
 
-// --- Middleware & Methods (from the second code snippet) ---
+// --- Middleware & Methods ---
 
 // Hash password before saving the user
 UserSchema.pre('save', async function (next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
+  next();
 });
 
-// Method to compare entered password with the hashed password in the database
+// Method to compare entered password with the hashed password
 UserSchema.methods.matchPassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };

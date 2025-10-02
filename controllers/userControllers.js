@@ -1,13 +1,12 @@
 const User = require('../models/User.js');
-const Connection = require('../models/Connection'); // <-- ADD THIS
+const Connection = require('../models/Connection');
 const MentorshipRequest = require('../models/MentorshipRequest');
 
 /**
- * @desc    Get user profile
- * @route   GET /api/users/profile
- * @access  Private
+ * @desc    Get all alumni
+ * @route   GET /api/users/alumni
+ * @access  Public
  */
-
 const getAlumni = async (req, res) => {
   try {
     const alumni = await User.find({ role: 'alumni' }).select('-password');
@@ -17,9 +16,13 @@ const getAlumni = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get logged-in user's profile
+ * @route   GET /api/users/profile
+ * @access  Private
+ */
 const getUserProfile = async (req, res) => {
-  // The user is already found by the 'protect' middleware and attached to req.user
-  const user = req.user;
+  const user = req.user; // attached via protect middleware
   if (user) {
     res.json(user);
   } else {
@@ -27,14 +30,12 @@ const getUserProfile = async (req, res) => {
   }
 };
 
-
 /**
- * @desc    Update user profile
+ * @desc    Update logged-in user's profile
  * @route   PUT /api/users/profile
  * @access  Private
  */
 const updateUserProfile = async (req, res) => {
-  // ... (This function remains the same as before)
   const user = await User.findById(req.user._id);
 
   if (user) {
@@ -58,6 +59,11 @@ const updateUserProfile = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get user by ID
+ * @route   GET /api/users/:id
+ * @access  Public
+ */
 const getUserById = async (req, res) => {
   try {
     const user = await User.findById(req.params.id).select('-password');
@@ -71,6 +77,40 @@ const getUserById = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Update profile picture
+ * @route   PUT /api/users/profile-picture
+ * @access  Private
+ */
+const updateProfilePicture = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No image file uploaded.' });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    // req.file.path should contain the Cloudinary or local file URL
+    user.profilePicture = req.file.path;
+    await user.save();
+
+    res.json({
+      message: 'Profile picture updated successfully.',
+      profilePicture: user.profilePicture,
+    });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+/**
+ * @desc    Check relationship status between logged-in user and another profile
+ * @route   GET /api/users/status/:profileUserId
+ * @access  Private
+ */
 const checkUserStatus = async (req, res) => {
   try {
     const loggedInUserId = req.user._id;
@@ -80,7 +120,7 @@ const checkUserStatus = async (req, res) => {
     let relationship = { status: 'none' };
 
     if (loggedInUserRole === 'alumni') {
-      // Check for an alumni-alumni connection
+      // Check alumni-alumni connection
       const connection = await Connection.findOne({
         $or: [
           { requester: loggedInUserId, recipient: profileUserId },
@@ -88,23 +128,38 @@ const checkUserStatus = async (req, res) => {
         ],
       });
       if (connection) {
-        relationship = { status: connection.status, id: connection._id, type: 'connection' };
+        relationship = {
+          status: connection.status,
+          id: connection._id,
+          type: 'connection',
+        };
       }
     } else if (loggedInUserRole === 'student') {
-      // Check for a student-alumni mentorship
+      // Check student-alumni mentorship
       const mentorship = await MentorshipRequest.findOne({
         student: loggedInUserId,
         alumni: profileUserId,
       });
       if (mentorship) {
-        relationship = { status: mentorship.status, id: mentorship._id, type: 'mentorship' };
+        relationship = {
+          status: mentorship.status,
+          id: mentorship._id,
+          type: 'mentorship',
+        };
       }
     }
-    
+
     res.json(relationship);
   } catch (error) {
     res.status(500).json({ message: 'Server Error' });
   }
 };
 
-module.exports = { updateUserProfile, getUserProfile, getAlumni,getUserById,checkUserStatus };
+module.exports = { 
+  getAlumni,
+  getUserProfile,
+  updateUserProfile,
+  getUserById,
+  updateProfilePicture,
+  checkUserStatus
+};

@@ -1,5 +1,6 @@
-const Post = require("../models/Post.js");
-const User = require('../models/User'); // Import User model
+const Post = require("../models/Post");
+const User = require('../models/User');
+
 /**
  * @desc    Create a new post
  * @route   POST /api/posts
@@ -15,18 +16,19 @@ const createPost = async (req, res) => {
       comments: [],
     });
 
-    // If an image was uploaded, add its URL to the post
-    if (req.file) {
-      post.image = req.file.path;
-    }
+    if (req.file) post.image = req.file.path;
 
     const createdPost = await post.save();
-    await createdPost.populate('user', 'name role');
+    // Populate name, role, profilePicture
+    await createdPost.populate('user', '_id name role profilePicture');
+
     res.status(201).json(createdPost);
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Server Error' });
   }
 };
+
 /**
  * @desc    Fetch all posts
  * @route   GET /api/posts
@@ -35,30 +37,33 @@ const createPost = async (req, res) => {
 const getPosts = async (req, res) => {
   try {
     const posts = await Post.find({})
-      .populate("user", "name role")
+      .populate('user', '_id name role profilePicture')
+      .populate('comments.user', '_id name profilePicture')
       .sort({ createdAt: -1 });
-    return res.json(posts);
+
+    res.json(posts);
   } catch (err) {
     console.error("Get posts error:", err.message);
-    return res.status(500).json({ message: "Server error fetching posts" });
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
+/**
+ * @desc    Like or unlike a post
+ * @route   POST /api/posts/:id/like
+ * @access  Private
+ */
 const likePost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
+    if (!post) return res.status(404).json({ message: 'Post not found' });
 
-    // Check if the post has already been liked by this user
     if (post.likes.includes(req.user.id)) {
-      // Already liked, so unlike it
       post.likes = post.likes.filter(userId => userId.toString() !== req.user.id);
     } else {
-      // Not liked, so like it
       post.likes.push(req.user.id);
     }
+
     await post.save();
     res.json(post.likes);
   } catch (error) {
@@ -66,14 +71,15 @@ const likePost = async (req, res) => {
   }
 };
 
-// @desc    Comment on a post
-// @route   POST /api/posts/:id/comment
+/**
+ * @desc    Comment on a post
+ * @route   POST /api/posts/:id/comment
+ * @access  Private
+ */
 const commentOnPost = async (req, res) => {
   try {
     const post = await Post.findById(req.params.id);
-    if (!post) {
-      return res.status(404).json({ message: 'Post not found' });
-    }
+    if (!post) return res.status(404).json({ message: 'Post not found' });
 
     const newComment = {
       text: req.body.text,
@@ -82,10 +88,9 @@ const commentOnPost = async (req, res) => {
 
     post.comments.push(newComment);
     await post.save();
-    
-    // Populate the user details for the new comment before sending back
+
     const createdComment = post.comments[post.comments.length - 1];
-    await Post.populate(createdComment, { path: 'user', select: 'name' });
+    await Post.populate(createdComment, { path: 'user', select: '_id name profilePicture' });
 
     res.status(201).json(createdComment);
   } catch (error) {
@@ -93,17 +98,78 @@ const commentOnPost = async (req, res) => {
   }
 };
 
+/**
+ * @desc    Get single post by ID
+ * @route   GET /api/posts/:id
+ * @access  Private
+ */
 const getPostById = async (req, res) => {
   try {
-    const post = await Post.findById(req.params.id).populate('user', 'name');
-    if (post) {
-      res.json(post);
-    } else {
-      res.status(404).json({ message: 'Post not found' });
-    }
+    const post = await Post.findById(req.params.id)
+      .populate('user', '_id name role profilePicture')
+      .populate('comments.user', '_id name profilePicture');
+
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    res.json(post);
   } catch (error) {
     res.status(500).json({ message: 'Server Error' });
   }
 };
 
-module.exports = { createPost, getPosts, likePost, commentOnPost,getPostById };
+/**
+ * @desc    Delete a post
+ * @route   DELETE /api/posts/:id
+ * @access  Private
+ */
+const deletePost = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    if (post.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    await post.deleteOne();
+    res.json({ message: 'Post removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+/**
+ * @desc    Delete a comment
+ * @route   DELETE /api/posts/:id/comment/:comment_id
+ * @access  Private
+ */
+const deleteComment = async (req, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+
+    const comment = post.comments.find(c => c.id === req.params.comment_id);
+    if (!comment) return res.status(404).json({ message: 'Comment not found' });
+
+    // Only comment author or post author can delete
+    if (comment.user.toString() !== req.user.id && post.user.toString() !== req.user.id) {
+      return res.status(401).json({ message: 'User not authorized' });
+    }
+
+    post.comments = post.comments.filter(c => c.id !== req.params.comment_id);
+    await post.save();
+
+    res.json({ message: 'Comment removed' });
+  } catch (error) {
+    res.status(500).json({ message: 'Server Error' });
+  }
+};
+
+module.exports = { 
+  createPost, 
+  getPosts, 
+  likePost, 
+  commentOnPost, 
+  getPostById, 
+  deletePost, 
+  deleteComment 
+};

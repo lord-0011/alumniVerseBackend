@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { getPosts, createPost, likePost, commentOnPost,getPostById } = require('../controllers/postControllers');
+const { getPosts, createPost, likePost, commentOnPost,getPostById,deleteComment,deletePost } = require('../controllers/postControllers');
 const { protect } = require('../middleware/authMiddleware');
 const multer = require('multer');
 const { storage } = require('../config/cloudinary');
@@ -13,5 +13,7 @@ router.route('/')
 router.put('/:id/like', protect, likePost);
 router.post('/:id/comment', protect, commentOnPost);
 router.get('/:id', protect, getPostById);
+router.delete('/:id', protect, deletePost);
+router.delete('/:id/comment/:comment_id', protect, deleteComment);
 
 module.exports = router;
